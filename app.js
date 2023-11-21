@@ -1,46 +1,39 @@
-let recorder;
-let audioPlayer = document.getElementById("audio-player");
+let mediaRecorder;
+let audioChunks = [];
 
-function handleFileSelect(input) {
-  const file = input.files[0];
-  if (file) {
-    stopRecording();
-    audioPlayer.src = URL.createObjectURL(file);
-    audioPlayer.style.display = "block";
-  }
-}
+document.getElementById('recordButton').addEventListener('click', startRecording);
+document.getElementById('stopButton').addEventListener('click', stopRecording);
 
 function startRecording() {
-  navigator.mediaDevices.getUserMedia({ audio: true })
-    .then(stream => {
-      recorder = new MediaRecorder(stream);
-      const chunks = [];
+    navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(function (stream) {
+            mediaRecorder = new MediaRecorder(stream);
+            mediaRecorder.ondataavailable = function (e) {
+                if (e.data.size > 0) {
+                    audioChunks.push(e.data);
+                }
+            };
 
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          chunks.push(e.data);
-        }
-      };
+            mediaRecorder.onstop = function () {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                const audioUrl = URL.createObjectURL(audioBlob);
+                document.getElementById('audioPlayer').src = audioUrl;
 
-      recorder.onstop = () => {
-        const audioBlob = new Blob(chunks, { type: 'audio/wav' });
-        audioPlayer.src = URL.createObjectURL(audioBlob);
-        audioPlayer.style.display = "block";
-      };
+                // Enable file input for uploading
+                document.getElementById('fileInput').disabled = false;
+            };
 
-      recorder.start();
-    })
-    .catch(error => console.error("Error accessing microphone:", error));
+            mediaRecorder.start();
+            document.getElementById('recordButton').disabled = true;
+            document.getElementById('stopButton').disabled = false;
+        })
+        .catch(function (err) {
+            console.error('Error accessing microphone:', err);
+        });
 }
 
 function stopRecording() {
-  if (recorder && recorder.state === 'recording') {
-    recorder.stop();
-  }
-}
-
-function playRecording() {
-  if (audioPlayer.src) {
-    audioPlayer.play();
-  }
+    mediaRecorder.stop();
+    document.getElementById('recordButton').disabled = false;
+    document.getElementById('stopButton').disabled = true;
 }
